@@ -33,6 +33,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/api/players/**").permitAll()  // reference data — no auth needed
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session
