@@ -5,9 +5,13 @@ import com.cricmanage.model.PlayerSeason;
 import com.cricmanage.repository.HistoricalSquadRepository;
 import com.cricmanage.repository.PlayerSeasonRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.cricmanage.config.DatabaseInitializer;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -19,6 +23,26 @@ public class PlayerController {
 
     @Autowired
     private HistoricalSquadRepository historicalSquadRepository;
+
+    @Autowired
+    private DatabaseInitializer databaseInitializer;
+
+    @PostMapping("/reseed")
+    public ResponseEntity<Map<String, Object>> reseed() {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            databaseInitializer.forceReseed();
+            response.put("status", "success");
+            response.put("message", "Database successfully re-seeded from CSVs.");
+            response.put("playersCount", playerSeasonRepository.count());
+            response.put("squadsCount", historicalSquadRepository.count());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("status", "error");
+            response.put("message", e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }
 
     @GetMapping("/seasons")
     public List<Integer> getSeasons() {

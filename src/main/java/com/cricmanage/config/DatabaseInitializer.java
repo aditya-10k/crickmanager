@@ -36,12 +36,23 @@ public class DatabaseInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        initializePlayers();
-        initializeSquads();
+        initializePlayers(false);
+        initializeSquads(false);
     }
 
-    private void initializePlayers() {
-        if (playerSeasonRepository.count() > 0) {
+    public void forceReseed() {
+        logger.info("Forced database re-seed requested. Deleting existing records...");
+        long start = System.currentTimeMillis();
+        playerSeasonRepository.deleteAllInBatch();
+        historicalSquadRepository.deleteAllInBatch();
+        logger.info("Deleted all records in " + (System.currentTimeMillis() - start) + " ms.");
+        
+        initializePlayers(true);
+        initializeSquads(true);
+    }
+
+    private void initializePlayers(boolean force) {
+        if (!force && playerSeasonRepository.count() > 0) {
             logger.info("Player season data already initialized in DB.");
             return;
         }
@@ -56,6 +67,7 @@ public class DatabaseInitializer implements CommandLineRunner {
         }
 
         logger.info("Importing player season data from " + file.getAbsolutePath() + "...");
+        long start = System.currentTimeMillis();
         List<PlayerSeason> list = new ArrayList<>();
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {
             String line;
@@ -91,14 +103,14 @@ public class DatabaseInitializer implements CommandLineRunner {
                 list.add(ps);
             }
             playerSeasonRepository.saveAll(list);
-            logger.info("Successfully imported " + list.size() + " player season cards into database.");
+            logger.info("Successfully imported " + list.size() + " player season cards into database in " + (System.currentTimeMillis() - start) + " ms.");
         } catch (Exception e) {
             logger.error("Error reading players CSV file: " + e.getMessage(), e);
         }
     }
 
-    private void initializeSquads() {
-        if (historicalSquadRepository.count() > 0) {
+    private void initializeSquads(boolean force) {
+        if (!force && historicalSquadRepository.count() > 0) {
             logger.info("Historical squad data already initialized in DB.");
             return;
         }
@@ -113,6 +125,7 @@ public class DatabaseInitializer implements CommandLineRunner {
         }
 
         logger.info("Importing historical squad data from " + file.getAbsolutePath() + "...");
+        long start = System.currentTimeMillis();
         List<HistoricalSquad> list = new ArrayList<>();
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {
             String line;
@@ -134,7 +147,7 @@ public class DatabaseInitializer implements CommandLineRunner {
                 list.add(hs);
             }
             historicalSquadRepository.saveAll(list);
-            logger.info("Successfully imported " + list.size() + " historical squads into database.");
+            logger.info("Successfully imported " + list.size() + " historical squads into database in " + (System.currentTimeMillis() - start) + " ms.");
         } catch (Exception e) {
             logger.error("Error reading squads CSV file: " + e.getMessage(), e);
         }
