@@ -1,0 +1,17 @@
+# Maven / Java build artefacts
+/target/
+*.log
+*.class
+
+# IDE files
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Environment files
+.env
+
+# OS files
+.DS_Store
+Thumbs.db

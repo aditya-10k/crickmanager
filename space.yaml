@@ -1,0 +1,5 @@
+sdk: docker
+Dockerfile: Dockerfile
+# Optional: set environment variables via Secrets in HF UI
+# env:
+#   - DATABASE_URL
