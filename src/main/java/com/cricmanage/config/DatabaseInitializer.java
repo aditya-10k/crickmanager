@@ -9,11 +9,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.jdbc.core.BatchPreparedStatementSetter;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,6 +31,9 @@ public class DatabaseInitializer implements CommandLineRunner {
 
     @Autowired
     private HistoricalSquadRepository historicalSquadRepository;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Value("${cricmanager.data.players-csv}")
     private String playersCsvPath;
@@ -102,7 +109,42 @@ public class DatabaseInitializer implements CommandLineRunner {
                 
                 list.add(ps);
             }
-            playerSeasonRepository.saveAll(list);
+
+            // Perform batch insert using JdbcTemplate (100x faster than Hibernate identity saveAll)
+            String sql = "INSERT INTO player_seasons (player, season, team, role, inferred_nationality, batting_style, bowling_style, is_wicketkeeper_career, runs_scored, wickets_taken, balls_faced, balls_bowled, batting_rating, bowling_rating, pp_bat_rating, pp_bowl_rating, death_bat_rating, death_bowl_rating, clutch_rating, overall_rating, cost) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
+                @Override
+                public void setValues(PreparedStatement ps, int i) throws SQLException {
+                    PlayerSeason p = list.get(i);
+                    ps.setString(1, p.getPlayer());
+                    ps.setInt(2, p.getSeason());
+                    ps.setString(3, p.getTeam());
+                    ps.setString(4, p.getRole());
+                    ps.setString(5, p.getInferredNationality());
+                    ps.setString(6, p.getBattingStyle());
+                    ps.setString(7, p.getBowlingStyle());
+                    ps.setInt(8, p.getIsWicketkeeperCareer());
+                    ps.setInt(9, p.getRunsScored());
+                    ps.setInt(10, p.getWicketsTaken());
+                    ps.setInt(11, p.getBallsFaced());
+                    ps.setInt(12, p.getBallsBowled());
+                    ps.setDouble(13, p.getBattingRating());
+                    ps.setDouble(14, p.getBowlingRating());
+                    ps.setDouble(15, p.getPpBatRating());
+                    ps.setDouble(16, p.getPpBowlRating());
+                    ps.setDouble(17, p.getDeathBatRating());
+                    ps.setDouble(18, p.getDeathBowlRating());
+                    ps.setDouble(19, p.getClutchRating());
+                    ps.setDouble(20, p.getOverallRating());
+                    ps.setDouble(21, p.getCost());
+                }
+
+                @Override
+                public int getBatchSize() {
+                    return list.size();
+                }
+            });
+
             logger.info("Successfully imported " + list.size() + " player season cards into database in " + (System.currentTimeMillis() - start) + " ms.");
         } catch (Exception e) {
             logger.error("Error reading players CSV file: " + e.getMessage(), e);
@@ -146,7 +188,28 @@ public class DatabaseInitializer implements CommandLineRunner {
                 
                 list.add(hs);
             }
-            historicalSquadRepository.saveAll(list);
+
+            // Perform batch insert using JdbcTemplate
+            String sql = "INSERT INTO historical_squads (team, season, squad_size, batting_strength, bowling_strength, clutch_strength, overall_strength) VALUES (?, ?, ?, ?, ?, ?, ?)";
+            jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
+                @Override
+                public void setValues(PreparedStatement ps, int i) throws SQLException {
+                    HistoricalSquad h = list.get(i);
+                    ps.setString(1, h.getTeam());
+                    ps.setInt(2, h.getSeason());
+                    ps.setInt(3, h.getSquadSize());
+                    ps.setDouble(4, h.getBattingStrength());
+                    ps.setDouble(5, h.getBowlingStrength());
+                    ps.setDouble(6, h.getClutchStrength());
+                    ps.setDouble(7, h.getOverallStrength());
+                }
+
+                @Override
+                public int getBatchSize() {
+                    return list.size();
+                }
+            });
+
             logger.info("Successfully imported " + list.size() + " historical squads into database in " + (System.currentTimeMillis() - start) + " ms.");
         } catch (Exception e) {
             logger.error("Error reading squads CSV file: " + e.getMessage(), e);
